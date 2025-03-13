@@ -1,0 +1,11 @@
+[package]
+name = "projet"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.15.3"
+libudev = "0.3.0"
+noise = "0.9.0"
+rand = "0.9.0"
+rand_chacha = "0.9.0"
