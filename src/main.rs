@@ -10,17 +10,42 @@ enum TileType {
     Steel,
 }
 
+struct TileMap {
+    tiles: Vec<Vec<TileType>>,
+    width: usize,
+    height: usize,
+}
+
 fn main() {
     App::new()
-        //.add_plugins(DefaultPlugins)
-        .add_systems(Startup, generate_ground)
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, setup)
         .run();
 }
 
-fn generate_noise_map() -> Vec<Vec<TileType>> {
-    let height = 100;
+fn setup(mut commands: Commands) {
+    // Add a 2D camera
+    commands.spawn((
+        Camera2d,
+        Camera {
+            hdr: true, // HDR is required for the bloom effect
+            ..default()
+        },
+        //Bloom::default(),
+    ));
+
+    
+    // Generate noise map
     let width = 100;
-    let scale: f64 = 5.;
+    let height = 100;
+    let scale = 5.0;
+    let tile_map = generate_tile_map(width, height, scale);
+    
+    // Create a grid of sprites
+    spawn_tile_grid(&mut commands, &tile_map);
+}
+
+fn generate_tile_map(width: usize, height: usize, scale: f64) -> TileMap {
     //let rng = rand::rng();
     let perlin = Perlin::new(43);
     let mut noise_array = vec![vec![TileType::Empty; width]; height];
@@ -40,7 +65,7 @@ fn generate_noise_map() -> Vec<Vec<TileType>> {
         }
     }
     
-    noise_array
+    TileMap{tiles: noise_array, width: width, height: height}
 }
 
 fn get_tile(val: f64) -> TileType {
@@ -72,8 +97,49 @@ fn print_noise_array(array: &Vec<Vec<TileType>>) {
     }
 }
 
-fn generate_ground() {
-    let map = generate_noise_map();
-    print_noise_array(&map);
+fn spawn_tile_grid(commands: &mut Commands, tile_map: &TileMap) {
+    // Define the size of each tile
+    let tile_size = 6.0;
+    
+    // Calculate total grid size
+    let grid_width = tile_map.width as f64 * tile_size;
+    let grid_height = tile_map.height as f64 * tile_size;
+    
+    // Center the grid
+    let offset_x = -grid_width / 2.0 + tile_size / 2.0;
+    let offset_y = -grid_height / 2.0 + tile_size / 2.0;
+    
+    // Spawn a sprite for each tile
+    for y in 0..tile_map.height {
+        for x in 0..tile_map.width {
+            let tile_type = &tile_map.tiles[y][x];
+            
+            // Choose color based on tile type
+            let color = match tile_type {
+                TileType::Mud => Color::srgb(0., 0., 1.),
+                TileType::Ground => Color::srgb(1., 0., 0.),
+                TileType::Steel => Color::srgb(1., 1., 1.),
+                TileType::Empty => Color::srgb(0., 0., 0.),
+            };
+            
+            // Calculate position
+            let position = Vec3::new(
+                (offset_x + x as f64 * tile_size) as f32,
+                (offset_y + y as f64 * tile_size) as f32,
+                0.0,
+            );
+            
+            commands.spawn((
+                // Transform will automatically add GlobalTransform
+                Transform::from_translation(position),
+                // Default visibility components will be added automatically
+                Visibility::Inherited,
+                Sprite {
+                    color,
+                    custom_size: Some(Vec2::new(tile_size as f32, tile_size as f32)),
+                    ..default()
+                },
+            ));
+        }
+    }
 }
-
